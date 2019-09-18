@@ -4,12 +4,14 @@ package commands
 import (
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipfs-cmdkit"
 	"github.com/ipfs/go-ipfs-cmds"
+	"github.com/ipfs/go-ipfs-files"
 
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -19,7 +21,9 @@ var chainCmd = &cmds.Command{
 		Tagline: "Inspect the filecoin blockchain",
 	},
 	Subcommands: map[string]*cmds.Command{
+		"export": storeExportCmd,
 		"head":   storeHeadCmd,
+		"import": storeImportCmd,
 		"ls":     storeLsCmd,
 		"status": storeStatusCmd,
 	},
@@ -120,5 +124,44 @@ var storeStatusCmd = &cmds.Command{
 			return err
 		}
 		return nil
+	},
+}
+
+var storeExportCmd = &cmds.Command{
+	Helptext: cmdkit.HelpText{
+		Tagline: "Export the chain store to a car file.",
+	},
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("file", true, false, "File to export chain data to."),
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+		f, err := os.Create(req.Arguments[0])
+		if err != nil {
+			return err
+		}
+		defer func() { _ = f.Close() }()
+		return GetPorcelainAPI(env).ChainExport(req.Context, f)
+	},
+}
+
+var storeImportCmd = &cmds.Command{
+	Helptext: cmdkit.HelpText{
+		Tagline: "Import the chain from a car file.",
+	},
+	Arguments: []cmdkit.Argument{
+		cmdkit.FileArg("file", true, false, "File to import chain data from.").EnableStdin(),
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+		iter := req.Files.Entries()
+		if !iter.Next() {
+			return fmt.Errorf("no file given: %s", iter.Err())
+		}
+
+		fi, ok := iter.Node().(files.File)
+		if !ok {
+			return fmt.Errorf("given file was not a files.File")
+		}
+		defer func() { _ = fi.Close() }()
+		return GetPorcelainAPI(env).ChainImport(req.Context, fi)
 	},
 }
