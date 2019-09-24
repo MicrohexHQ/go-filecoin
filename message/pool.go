@@ -9,6 +9,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/config"
+	"github.com/filecoin-project/go-filecoin/journal"
 	"github.com/filecoin-project/go-filecoin/metrics"
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -34,6 +35,8 @@ type Pool struct {
 	validator     PoolValidator
 	pending       map[cid.Cid]*timedmessage // all pending messages
 	addressNonces map[addressNonce]bool     // set of address nonce pairs used to efficiently validate duplicate nonces
+
+	journal journal.Journal
 }
 
 type timedmessage struct {
@@ -51,12 +54,13 @@ func newAddressNonce(msg *types.SignedMessage) addressNonce {
 }
 
 // NewPool constructs a new Pool.
-func NewPool(cfg *config.MessagePoolConfig, validator PoolValidator) *Pool {
+func NewPool(cfg *config.MessagePoolConfig, validator PoolValidator, jb journal.Builder) *Pool {
 	return &Pool{
 		cfg:           cfg,
 		validator:     validator,
 		pending:       make(map[cid.Cid]*timedmessage),
 		addressNonces: make(map[addressNonce]bool),
+		journal:       jb("pool"),
 	}
 }
 
@@ -84,6 +88,7 @@ func (pool *Pool) Add(ctx context.Context, msg *types.SignedMessage, height uint
 	pool.pending[c] = &timedmessage{message: msg, addedAt: height}
 	pool.addressNonces[newAddressNonce(msg)] = true
 	mpSize.Set(ctx, int64(len(pool.pending)))
+	pool.journal.Record("ADD", "message", msg)
 	return c, nil
 }
 
@@ -123,6 +128,7 @@ func (pool *Pool) Remove(c cid.Cid) {
 		delete(pool.pending, c)
 	}
 	mpSize.Set(context.TODO(), int64(len(pool.pending)))
+	pool.journal.Record("REMOVE", "message", c.String())
 }
 
 // LargestNonce returns the largest nonce used by a message from address in the pool.

@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ipfs/go-bitswap"
@@ -33,6 +34,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/clock"
 	"github.com/filecoin-project/go-filecoin/consensus"
+	"github.com/filecoin-project/go-filecoin/journal"
 	"github.com/filecoin-project/go-filecoin/message"
 	"github.com/filecoin-project/go-filecoin/net"
 	"github.com/filecoin-project/go-filecoin/net/pubsub"
@@ -163,6 +165,15 @@ func (nc *Builder) build(ctx context.Context) (*Node, error) {
 		return nil, err
 	}
 
+	repoPath, err := nc.Repo.Path()
+	if err != nil {
+		return nil, err
+	}
+
+	jBuilder, err := journal.NewZapJournalBuilder(fmt.Sprintf("%s/%s", repoPath, "journal.json"))
+	if err != nil {
+		return nil, err
+	}
 	chainStatusReporter := chain.NewStatusReporter()
 	// set up chain and message stores
 	chainStore := chain.NewStore(nc.Repo.ChainDatastore(), &ipldCborStore, &state.TreeStateLoader{}, chainStatusReporter, genCid)
@@ -263,13 +274,13 @@ func (nc *Builder) build(ctx context.Context) (*Node, error) {
 
 	// only the syncer gets the storage which is online connected
 	chainSyncer := chain.NewSyncer(nodeConsensus, chainStore, messageStore, fetcher, chainStatusReporter, nc.Clock)
-	msgPool := message.NewPool(nc.Repo.Config().Mpool, consensus.NewIngestionValidator(chainState, nc.Repo.Config().Mpool))
+	msgPool := message.NewPool(nc.Repo.Config().Mpool, consensus.NewIngestionValidator(chainState, nc.Repo.Config().Mpool), jBuilder)
 	inbox := message.NewInbox(msgPool, message.InboxMaxAgeTipsets, chainStore, messageStore)
 
 	msgQueue := message.NewQueue()
 	outboxPolicy := message.NewMessageQueuePolicy(messageStore, message.OutboxMaxAgeRounds)
 	msgPublisher := message.NewDefaultPublisher(pubsub.NewPublisher(fsub), net.MessageTopic(network), msgPool)
-	outbox := message.NewOutbox(fcWallet, consensus.NewOutboundMessageValidator(), msgQueue, msgPublisher, outboxPolicy, chainStore, chainState)
+	outbox := message.NewOutbox(fcWallet, consensus.NewOutboundMessageValidator(), msgQueue, msgPublisher, outboxPolicy, chainStore, chainState, jBuilder)
 
 	nd := &Node{
 		blockservice: bservice,

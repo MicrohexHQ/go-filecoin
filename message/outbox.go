@@ -11,6 +11,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/consensus"
+	"github.com/filecoin-project/go-filecoin/journal"
 	"github.com/filecoin-project/go-filecoin/metrics"
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -38,6 +39,8 @@ type Outbox struct {
 
 	// Protects the "next nonce" calculation to avoid collisions.
 	nonceLock sync.Mutex
+
+	journal journal.Journal
 }
 
 type actorProvider interface {
@@ -53,7 +56,7 @@ var msgSendErrCt = metrics.NewInt64Counter("message_sender_error", "Number of er
 
 // NewOutbox creates a new outbox
 func NewOutbox(signer types.Signer, validator consensus.SignedMessageValidator, queue *Queue,
-	publisher publisher, policy QueuePolicy, chains chainProvider, actors actorProvider) *Outbox {
+	publisher publisher, policy QueuePolicy, chains chainProvider, actors actorProvider, jb journal.Builder) *Outbox {
 	return &Outbox{
 		signer:    signer,
 		validator: validator,
@@ -62,6 +65,7 @@ func NewOutbox(signer types.Signer, validator consensus.SignedMessageValidator, 
 		policy:    policy,
 		chains:    chains,
 		actors:    actors,
+		journal:   jb("outbox"),
 	}
 }
 
@@ -74,9 +78,12 @@ func (ob *Outbox) Queue() *Queue {
 // If bcast is true, the publisher broadcasts the message to the network at the current block height.
 func (ob *Outbox) Send(ctx context.Context, from, to address.Address, value types.AttoFIL,
 	gasPrice types.AttoFIL, gasLimit types.GasUnits, bcast bool, method string, params ...interface{}) (out cid.Cid, err error) {
+
 	defer func() {
 		if err != nil {
 			msgSendErrCt.Inc(ctx, 1)
+		} else {
+			ob.journal.Record("SEND", "from", from.String(), "to", to.String(), "value", value.String())
 		}
 	}()
 

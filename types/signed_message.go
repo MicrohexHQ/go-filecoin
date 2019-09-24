@@ -9,6 +9,7 @@ import (
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/pkg/errors"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/filecoin-project/go-filecoin/address"
 )
@@ -52,6 +53,26 @@ func NewSignedMessage(msg Message, s Signer, gasPrice AttoFIL, gasLimit GasUnits
 		MeteredMessage: *meteredMsg,
 		Signature:      sig,
 	}, nil
+}
+
+// MarshalLogObject defines how SignedMessages are to be marshaled when passed as arguemts to
+// a Journal.
+func (smsg *SignedMessage) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	c, err := smsg.Cid()
+	if err != nil {
+		return err
+	}
+	enc.AddString("cid", c.String())
+	enc.AddString("to", smsg.To.String())
+	enc.AddString("from", smsg.From.String())
+	enc.AddUint64("nonce", uint64(smsg.Nonce))
+	enc.AddUint64("value", smsg.Value.AsBigInt().Uint64())
+	enc.AddString("method", smsg.Method)
+	enc.AddBinary("params", smsg.Params)
+	enc.AddUint64("gas-price", smsg.GasPrice.AsBigInt().Uint64())
+	enc.AddUint64("gas-limit", uint64(smsg.GasLimit))
+	enc.AddBinary("signature", smsg.Signature)
+	return nil
 }
 
 // Unmarshal a SignedMessage from the given bytes.
