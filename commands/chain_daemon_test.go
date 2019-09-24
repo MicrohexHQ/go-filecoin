@@ -2,17 +2,24 @@ package commands_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-filecoin/fixtures"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	tf "github.com/filecoin-project/go-filecoin/testhelpers/testflags"
+	"github.com/filecoin-project/go-filecoin/tools/fast"
+	"github.com/filecoin-project/go-filecoin/tools/fast/fastesting"
+	"github.com/filecoin-project/go-filecoin/tools/fast/series"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -126,4 +133,72 @@ func TestChainLs(t *testing.T) {
 		assert.Contains(t, chainLsResult, `"height":"0"`)
 		assert.Contains(t, chainLsResult, `"height":"1"`)
 	})
+}
+
+func TestChainImportExport(t *testing.T) {
+	tf.IntegrationTest(t)
+
+	ctx, env := fastesting.NewTestEnvironment(context.Background(), t, fast.FilecoinOpts{
+		DaemonOpts: []fast.ProcessDaemonOption{fast.POBlockTime(50 * time.Millisecond)},
+	})
+	// Teardown after test ends
+	defer func() {
+		err := env.Teardown(ctx)
+		require.NoError(t, err)
+	}()
+	genesisNode := env.GenesisMiner
+
+	// create a node that will export its chain
+	exportNode := env.RequireNewNodeWithFunds(1000)
+	require.NoError(t, series.Connect(ctx, genesisNode, exportNode))
+
+	// create blocks with no messages
+	series.CtxMiningOnce(ctx)
+
+	// create block with 1 message
+	require.NoError(t, series.SendFilecoinDefaults(ctx, genesisNode, exportNode, 10))
+	series.CtxMiningOnce(ctx)
+
+	// create block with many messages
+	for i := 0; i < 20; i++ {
+		require.NoError(t, series.SendFilecoinDefaults(ctx, genesisNode, exportNode, 10))
+		require.NoError(t, series.SendFilecoinDefaults(ctx, exportNode, genesisNode, 10))
+	}
+	series.CtxMiningOnce(ctx)
+
+	// create some more empty blocks
+	for i := 0; i < 5; i++ {
+		series.CtxMiningOnce(ctx)
+	}
+
+	// assert the genesisNode and export node are on the same head
+	geneHead, err := genesisNode.ChainHead(ctx)
+	require.NoError(t, err)
+	exportHead, err := exportNode.ChainHead(ctx)
+	require.NoError(t, err)
+	require.Equal(t, geneHead, exportHead)
+
+	// export node exports its chain
+	exfi, err := ioutil.TempFile("", "fast_export_node.car")
+	require.NoError(t, err)
+	defer func() { _ = exfi.Close() }()
+	require.NoError(t, exportNode.ChainExport(ctx, exfi.Name()))
+
+	// create a new node unconnected to the rest to import chain
+	importNode := env.RequireNewNodeStarted()
+	imfi := files.NewReaderFile(exfi)
+	defer func() { _ = imfi.Close() }()
+	require.NoError(t, importNode.ChainImport(ctx, imfi))
+
+	// imported chain head should equal exported chain head.
+	importHead, err := importNode.ChainHead(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, exportHead, importHead)
+
+	// sanity check with an out of sync node
+	dummyNode := env.RequireNewNodeStarted()
+	dummyHead, err := dummyNode.ChainHead(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, importHead, dummyHead)
+
 }
