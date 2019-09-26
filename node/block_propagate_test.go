@@ -47,7 +47,7 @@ func requireMineOnce(ctx context.Context, t *testing.T, minerNode *Node) *types.
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		wonElection = worker.Mine(ctx, headTipSet, 0, out)
+		wonElection, _ = worker.Mine(ctx, headTipSet, []types.Ticket{}, out)
 		wg.Done()
 	}()
 	next := <-out
@@ -133,7 +133,7 @@ func TestChainSync(t *testing.T) {
 // makeNodes makes at least two nodes, a miner and a client; numNodes is the total wanted
 func makeNodesBlockPropTests(t *testing.T, numNodes int) (address.Address, []*Node) {
 	seed := MakeChainSeed(t, TestGenCfg)
-	builderOpts := []BuilderOpt{ClockConfigOption(th.NewFakeSystemClock(time.Unix(1234567890, 0)))}
+	builderOpts := []BuilderOpt{ClockConfigOption(th.NewFakeClock(time.Unix(1234567890, 0)))}
 	minerNode := MakeNodeWithChainSeed(t, seed, builderOpts,
 		PeerKeyOpt(PeerKeys[0]),
 	)
