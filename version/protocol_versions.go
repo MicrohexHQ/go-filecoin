@@ -13,6 +13,9 @@ const DEVNET4 = "devnet4"
 // LOCALNET is the network name of localnet
 const LOCALNET = "localnet"
 
+// NIGHTLY is the network for nightly builds
+const NIGHTLY = "nightly"
+
 // TEST is the network name for internal tests
 const TEST = "go-filecoin-test"
 
@@ -26,6 +29,7 @@ func ConfigureProtocolVersions(network string) (*ProtocolVersionTable, error) {
 	return NewProtocolVersionTableBuilder(network).
 		Add(USER, Protocol0, types.NewBlockHeight(0)).
 		Add(DEVNET4, Protocol0, types.NewBlockHeight(0)).
+		Add(NIGHTLY, Protocol0, types.NewBlockHeight(0)).
 		Add(LOCALNET, Protocol0, types.NewBlockHeight(0)).
 		Add(TEST, Protocol0, types.NewBlockHeight(0)).
 		Build()
