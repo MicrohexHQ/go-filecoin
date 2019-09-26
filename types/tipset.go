@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
+	"go.uber.org/zap/zapcore"
 )
 
 // TipSet is a non-empty, immutable set of blocks at the same height with the same parent set.
@@ -17,9 +18,28 @@ import (
 // a tipset "key".
 type TipSet struct {
 	// This slice is wrapped in a struct to enforce immutability.
-	blocks []*Block
+	blocks Blocks
 	// Key is computed at construction and cached.
 	key TipSetKey
+}
+
+// MarshalLogObject defines how Blocks are to be marshaled when passed as arguemts to
+// a Journal.
+func (t TipSet) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("key", t.key.String())
+	enc.AddArray("blocks", t.blocks)
+	return nil
+}
+
+type Blocks []*Block
+
+func (bs Blocks) MarshalLogArray(arr zapcore.ArrayEncoder) error {
+	for i := range bs {
+		if err := arr.AppendObject(bs[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var (

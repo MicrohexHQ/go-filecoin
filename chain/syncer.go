@@ -11,6 +11,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/clock"
 	"github.com/filecoin-project/go-filecoin/consensus"
+	"github.com/filecoin-project/go-filecoin/journal"
 	"github.com/filecoin-project/go-filecoin/metrics"
 	"github.com/filecoin-project/go-filecoin/metrics/tracing"
 	"github.com/filecoin-project/go-filecoin/net"
@@ -104,10 +105,12 @@ type Syncer struct {
 
 	// Reporter is used by the syncer to update the current status of the chain.
 	reporter Reporter
+
+	journal journal.Journal
 }
 
 // NewSyncer constructs a Syncer ready for use.
-func NewSyncer(e syncStateEvaluator, s syncerChainReaderWriter, m MessageProvider, f net.Fetcher, sr Reporter, c clock.Clock) *Syncer {
+func NewSyncer(e syncStateEvaluator, s syncerChainReaderWriter, m MessageProvider, f net.Fetcher, sr Reporter, c clock.Clock, jb journal.Builder) *Syncer {
 	return &Syncer{
 		fetcher: f,
 		badTipSets: &badTipSetCache{
@@ -118,6 +121,7 @@ func NewSyncer(e syncStateEvaluator, s syncerChainReaderWriter, m MessageProvide
 		messageProvider: m,
 		clock:           c,
 		reporter:        sr,
+		journal:         jb("syncer"),
 	}
 }
 
@@ -130,6 +134,7 @@ func NewSyncer(e syncStateEvaluator, s syncerChainReaderWriter, m MessageProvide
 // Precondition: the caller of syncOne must hold the syncer's lock (syncer.mu) to
 // ensure head is not modified by another goroutine during run.
 func (syncer *Syncer) syncOne(ctx context.Context, parent, next types.TipSet) error {
+	syncer.journal.Record("SYNC", "parent", parent, "next", next)
 	priorHeadKey := syncer.chainStore.GetHead()
 
 	// if tipset is already priorHeadKey, we've been here before. do nothing.
@@ -221,6 +226,7 @@ func (syncer *Syncer) syncOne(ctx context.Context, parent, next types.TipSet) er
 		if err = syncer.chainStore.SetHead(ctx, next); err != nil {
 			return err
 		}
+		syncer.journal.Record("SET_HEAD", "head", next)
 		// Gather the entire new chain for reorg comparison and logging.
 		syncer.logReorg(ctx, headTipSet, next)
 	}
@@ -245,6 +251,7 @@ func (syncer *Syncer) logReorg(ctx context.Context, curHead, newHead types.TipSe
 		dropped, added, err := ReorgDiff(curHead, newHead, commonAncestor)
 		if err == nil {
 			logSyncer.Infof("reorg dropping %d height and adding %d height from %s to %s", dropped, added, curHead.String(), newHead.String())
+			syncer.journal.Record("REORG", "current", curHead, "new", newHead)
 		} else {
 			logSyncer.Infof("reorg from %s to %s", curHead.String(), newHead.String())
 			logSyncer.Errorf("unexpected error from ReorgDiff during log: %s", err.Error())
@@ -319,6 +326,7 @@ func (syncer *Syncer) widen(ctx context.Context, ts types.TipSet) (types.TipSet,
 // attempt to validate and caches invalid blocks it has encountered to
 // help prevent DOS.
 func (syncer *Syncer) HandleNewTipSet(ctx context.Context, ci *types.ChainInfo, trusted bool) (err error) {
+	syncer.journal.Record("HANDLE", "chain", ci)
 	logSyncer.Debugf("Begin fetch and sync of chain with head %v", ci.Head)
 	ctx, span := trace.StartSpan(ctx, "Syncer.HandleNewTipSet")
 	span.AddAttributes(trace.StringAttribute("tipset", ci.Head.String()))

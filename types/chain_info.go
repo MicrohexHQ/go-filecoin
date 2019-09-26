@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/peer"
+	"go.uber.org/zap/zapcore"
 )
 
 // ChainInfo is used to track metadata about a peer and its chain.
@@ -21,6 +22,15 @@ func NewChainInfo(peer peer.ID, head TipSetKey, height uint64) *ChainInfo {
 		Head:   head,
 		Height: height,
 	}
+}
+
+// MarshalLogObject defines how ChainInfos are to be marshaled when passed as arguemts to
+// a Journal.
+func (i *ChainInfo) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("peer", i.Peer.Pretty())
+	enc.AddString("head", i.Head.String())
+	enc.AddUint64("height", i.Height)
+	return nil
 }
 
 // Returns a human-readable string representation of a chain info

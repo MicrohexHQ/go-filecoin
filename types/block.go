@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	node "github.com/ipfs/go-ipld-format"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/filecoin-project/go-filecoin/address"
 )
@@ -58,6 +59,20 @@ type Block struct {
 	cachedCid cid.Cid
 
 	cachedBytes []byte
+}
+
+// MarshalLogObject defines how Blocks are to be marshaled when passed as arguemts to
+// a Journal.
+func (b *Block) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("cid", b.Cid().String())
+	enc.AddString("miner", b.Miner.String())
+	enc.AddString("parents", b.Parents.String())
+	enc.AddUint64("parentWeight", uint64(b.ParentWeight))
+	enc.AddUint64("height", uint64(b.Height))
+	enc.AddString("messages", b.Messages.String())
+	enc.AddString("stateRoot", b.StateRoot.String())
+	enc.AddUint64("timestamp", uint64(b.Timestamp))
+	return nil
 }
 
 // set this to true to panic if the blocks data differs from the cached cid. This should
