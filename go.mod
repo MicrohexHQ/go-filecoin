@@ -10,6 +10,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/Workiva/go-datastructures v1.0.50
 	github.com/btcsuite/goleveldb v1.0.0 // indirect
+	github.com/carbonfive/go-filecoin-rest-api v0.0.0-20190927235843-f85ad4648391
 	github.com/coreos/bbolt v1.3.3 // indirect
 	github.com/coreos/etcd v3.3.13+incompatible // indirect
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f // indirect
@@ -22,17 +23,15 @@ require (
 	github.com/filecoin-project/go-bls-sigs v0.0.0
 	github.com/filecoin-project/go-leb128 v0.0.0-20190212224330-8d79a5489543
 	github.com/filecoin-project/go-sectorbuilder v0.0.0-20190801004428-e75bc9b0aaea
-	github.com/go-critic/go-critic v0.0.0-20181204210945-ee9bf5809ead // indirect
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/golangci/golangci-lint v1.17.1
+	github.com/golangci/golangci-lint v1.19.1
 	github.com/golangci/govet v0.0.0-20180818181408-44ddbe260190 // indirect
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/pprof v0.0.0-20190723021845-34ac40c74b70 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
-	github.com/gorilla/mux v1.7.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.9.5 // indirect
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
 	github.com/ipfs/go-bitswap v0.1.5
@@ -73,7 +72,6 @@ require (
 	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/kkdai/bstream v1.0.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/kr/pty v1.1.8 // indirect
 	github.com/libp2p/go-libp2p v0.2.1
 	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
 	github.com/libp2p/go-libp2p-circuit v0.1.0
@@ -110,13 +108,10 @@ require (
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rogpeppe/fastuuid v1.2.0 // indirect
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
-	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/smartystreets/assertions v1.0.1 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/viper v1.4.0 // indirect
-	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
 	github.com/ugorji/go v1.1.7 // indirect
 	github.com/whyrusleeping/cbor-gen v0.0.0-20190910031516-c1cbffdb01bb
 	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc
